@@ -7,6 +7,7 @@
 3. **efficientnet_model.py** - Your trained model (already have)
 
 ---
+## BASE URL FOR PRODUCTION: https://vision.x02.me
 
 ## STEP 1: Copy Files (1 min)
 

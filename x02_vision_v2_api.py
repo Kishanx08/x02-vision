@@ -42,8 +42,7 @@ VIDEO_EXTENSIONS = MediaProcessor.SUPPORTED_VIDEO_FORMATS
 
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -55,15 +54,17 @@ CONFIG = {
     "max_download_size": 100 * 1024 * 1024,
     "frame_interval": 5,
     "timeout": 30,
-    "max_concurrent_jobs": 4,
-    "queue_worker_count": 2,
+    "max_concurrent_jobs": 8,
+    "queue_worker_count": 4,
     "torch_num_threads": 12,
+    "max_batch_images": 50,
 }
 
 model = None
 media_processor = None
 inference_semaphore = asyncio.Semaphore(CONFIG["max_concurrent_jobs"])
 job_queue_manager = None
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -121,9 +122,6 @@ app.add_middleware(
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 
-inference_semaphore = asyncio.Semaphore(CONFIG["max_concurrent_jobs"])
-job_queue_manager = None
-
 
 def get_request_id(request: Request) -> str:
     """Get or assign a request ID for request tracing."""
@@ -149,10 +147,15 @@ def get_file_extension_from_url(url: str) -> str:
     return Path(urlparse(url).path).suffix.lower()
 
 
-def validate_file_upload_format(upload: UploadFile, allowed_extensions: set[str], endpoint_name: str) -> None:
+def validate_file_upload_format(
+    upload: UploadFile, allowed_extensions: set[str], endpoint_name: str
+) -> None:
     ext = get_file_extension_from_upload(upload)
     if not ext:
-        raise HTTPException(status_code=400, detail=f"{endpoint_name} uploads must include a file extension")
+        raise HTTPException(
+            status_code=400,
+            detail=f"{endpoint_name} uploads must include a file extension",
+        )
     if ext not in allowed_extensions:
         raise HTTPException(
             status_code=415,
@@ -160,7 +163,9 @@ def validate_file_upload_format(upload: UploadFile, allowed_extensions: set[str]
         )
 
 
-def validate_url_format(url: str, allowed_extensions: set[str], endpoint_name: str) -> None:
+def validate_url_format(
+    url: str, allowed_extensions: set[str], endpoint_name: str
+) -> None:
     ext = get_file_extension_from_url(url)
     if not ext:
         return
@@ -201,7 +206,6 @@ def build_job_payload(
     is_url: bool,
     frame_interval: Optional[int] = None,
     cleanup_path: Optional[str] = None,
-    enable_ocr: bool = True,
 ) -> Dict[str, Any]:
     """Create an internal queue payload for async moderation jobs."""
     return {
@@ -210,7 +214,6 @@ def build_job_payload(
         "is_url": is_url,
         "frame_interval": frame_interval,
         "cleanup_path": cleanup_path,
-        "enable_ocr": enable_ocr,
     }
 
 
@@ -235,7 +238,6 @@ async def process_media_request(
     source_value: str,
     is_url: bool,
     frame_interval: Optional[int] = None,
-    enable_ocr: bool = True,
 ) -> dict:
     """Run media processing in a worker thread with request-scoped logging."""
     req_id = get_request_id(request)
@@ -255,11 +257,15 @@ async def process_media_request(
                 source_value,
                 is_url,
                 frame_interval,
-                enable_ocr,
             )
     except Exception as exc:
         http_exc = to_http_exception(exc)
-        logger.warning("%s failed status=%s detail=%s", req_id, http_exc.status_code, http_exc.detail)
+        logger.warning(
+            "%s failed status=%s detail=%s",
+            req_id,
+            http_exc.status_code,
+            http_exc.detail,
+        )
         raise http_exc from exc
 
     result["inference_time_ms"] = int((time.time() - started_at) * 1000)
@@ -275,7 +281,6 @@ async def process_queue_job(job: Dict[str, Any]) -> Dict[str, Any]:
             job["source_value"],
             job["is_url"],
             job.get("frame_interval"),
-            job.get("enable_ocr", True),
         )
 
 
@@ -286,8 +291,6 @@ async def add_request_id_middleware(request: Request, call_next):
     response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
     return response
-
-
 
 
 @app.get("/health")
@@ -316,7 +319,9 @@ async def moderate_image(
     if not file and not image_url:
         raise HTTPException(status_code=400, detail="Either file or image_url required")
     if file and image_url:
-        raise HTTPException(status_code=400, detail="Provide either file or image_url, not both")
+        raise HTTPException(
+            status_code=400, detail="Provide either file or image_url, not both"
+        )
     if image_url:
         validate_input_url(image_url)
         validate_url_format(image_url, IMAGE_EXTENSIONS, "image")
@@ -325,7 +330,9 @@ async def moderate_image(
         validate_file_upload_format(file, IMAGE_EXTENSIONS, "image")
         temp_path = await save_upload_to_temp(file, fallback_suffix=".jpg")
         try:
-            return await process_media_request(request, source_value=temp_path, is_url=False)
+            return await process_media_request(
+                request, source_value=temp_path, is_url=False
+            )
         finally:
             Path(temp_path).unlink(missing_ok=True)
 
@@ -343,7 +350,9 @@ async def moderate_gif(
     if not file and not gif_url:
         raise HTTPException(status_code=400, detail="Either file or gif_url required")
     if file and gif_url:
-        raise HTTPException(status_code=400, detail="Provide either file or gif_url, not both")
+        raise HTTPException(
+            status_code=400, detail="Provide either file or gif_url, not both"
+        )
     if gif_url:
         validate_input_url(gif_url)
         validate_url_format(gif_url, GIF_EXTENSIONS, "gif")
@@ -352,7 +361,9 @@ async def moderate_gif(
         validate_file_upload_format(file, GIF_EXTENSIONS, "gif")
         temp_path = await save_upload_to_temp(file, fallback_suffix=".gif")
         try:
-            return await process_media_request(request, source_value=temp_path, is_url=False)
+            return await process_media_request(
+                request, source_value=temp_path, is_url=False
+            )
         finally:
             Path(temp_path).unlink(missing_ok=True)
 
@@ -371,12 +382,16 @@ async def moderate_video(
     if not file and not video_url:
         raise HTTPException(status_code=400, detail="Either file or video_url required")
     if file and video_url:
-        raise HTTPException(status_code=400, detail="Provide either file or video_url, not both")
+        raise HTTPException(
+            status_code=400, detail="Provide either file or video_url, not both"
+        )
     if video_url:
         validate_input_url(video_url)
         validate_url_format(video_url, VIDEO_EXTENSIONS, "video")
     if frame_interval is None or frame_interval < 1 or frame_interval > 30:
-        raise HTTPException(status_code=400, detail="frame_interval must be between 1 and 30")
+        raise HTTPException(
+            status_code=400, detail="frame_interval must be between 1 and 30"
+        )
 
     if file:
         validate_file_upload_format(file, VIDEO_EXTENSIONS, "video")
@@ -411,11 +426,15 @@ async def moderate_media(
     if not file and not media_url:
         raise HTTPException(status_code=400, detail="Either file or media_url required")
     if file and media_url:
-        raise HTTPException(status_code=400, detail="Provide either file or media_url, not both")
+        raise HTTPException(
+            status_code=400, detail="Provide either file or media_url, not both"
+        )
     if media_url:
         validate_input_url(media_url)
     if frame_interval is None or frame_interval < 1 or frame_interval > 30:
-        raise HTTPException(status_code=400, detail="frame_interval must be between 1 and 30")
+        raise HTTPException(
+            status_code=400, detail="frame_interval must be between 1 and 30"
+        )
 
     if file:
         temp_path = await save_upload_to_temp(file)
@@ -445,13 +464,16 @@ async def create_async_job(
     source_url: Optional[str],
     fallback_suffix: str,
     frame_interval: Optional[int] = None,
-    enable_ocr: bool = True,
 ) -> Dict[str, Any]:
     """Create a queued moderation job for longer-running media."""
     if not file and not source_url:
-        raise HTTPException(status_code=400, detail=f"Either file or {endpoint}_url required")
+        raise HTTPException(
+            status_code=400, detail=f"Either file or {endpoint}_url required"
+        )
     if file and source_url:
-        raise HTTPException(status_code=400, detail="Provide either file or URL, not both")
+        raise HTTPException(
+            status_code=400, detail="Provide either file or URL, not both"
+        )
     if source_url:
         validate_input_url(source_url)
 
@@ -465,7 +487,6 @@ async def create_async_job(
             is_url=False,
             frame_interval=frame_interval,
             cleanup_path=temp_path,
-            enable_ocr=enable_ocr,
         )
     else:
         payload = build_job_payload(
@@ -474,7 +495,6 @@ async def create_async_job(
             is_url=True,
             frame_interval=frame_interval,
             cleanup_path=None,
-            enable_ocr=enable_ocr,
         )
 
     job = await job_queue_manager.submit(payload, request_id)
@@ -507,7 +527,6 @@ async def queue_moderate_gif(
         file=file,
         source_url=gif_url,
         fallback_suffix=".gif",
-        enable_ocr=enable_ocr,
     )
 
 
@@ -518,11 +537,12 @@ async def queue_moderate_video(
     file: Optional[UploadFile] = File(None),
     video_url: Optional[str] = Form(None),
     frame_interval: Optional[int] = Form(5),
-    enable_ocr: bool = Form(True),
 ):
     """Queue a video moderation job."""
     if frame_interval is None or frame_interval < 1 or frame_interval > 30:
-        raise HTTPException(status_code=400, detail="frame_interval must be between 1 and 30")
+        raise HTTPException(
+            status_code=400, detail="frame_interval must be between 1 and 30"
+        )
     if video_url:
         validate_input_url(video_url)
         validate_url_format(video_url, VIDEO_EXTENSIONS, "video")
@@ -536,7 +556,6 @@ async def queue_moderate_video(
         source_url=video_url,
         fallback_suffix=".mp4",
         frame_interval=frame_interval,
-        enable_ocr=enable_ocr,
     )
 
 
@@ -571,7 +590,10 @@ async def get_job_result(job_id: str):
         raise HTTPException(status_code=202, detail="Job still processing")
     if job["status"] == "failed":
         error = job.get("error", {})
-        raise HTTPException(status_code=error.get("status_code", 500), detail=error.get("detail", "Job failed"))
+        raise HTTPException(
+            status_code=error.get("status_code", 500),
+            detail=error.get("detail", "Job failed"),
+        )
     return job["result"]
 
 
@@ -610,7 +632,6 @@ async def info():
         },
         "max_concurrent_jobs": CONFIG["max_concurrent_jobs"],
         "queue_worker_count": CONFIG["queue_worker_count"],
-        "ocr_enabled": media_processor.enable_ocr if media_processor else False,
     }
 
 
