@@ -31,7 +31,8 @@ Put these files there:
 - `services/`
 - `requirements.txt`
 - `ecosystem.config.cjs`
-- `x02_vision_v2_efficientnet_b4_best.pth`
+- `nginx-media-moderation.conf`
+- `x02_vision_v2_efficientnet_b4_best.pth` (⚠️ **NOT in git - obtain separately**)
 
 ## 4. Create virtual environment
 
