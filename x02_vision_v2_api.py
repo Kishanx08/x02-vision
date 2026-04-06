@@ -1,5 +1,5 @@
 """
-x02 Unified Media Moderation Service
+x02 Vision V2 Service
 Production-ready FastAPI service for Image/GIF/Video moderation.
 """
 
@@ -68,7 +68,7 @@ job_queue_manager = None
 async def lifespan(app: FastAPI):
     global model, media_processor, job_queue_manager
 
-    logger.info("Starting up x02 Unified Media Moderation Service")
+    logger.info("Starting up x02 Vision V2 Service")
     torch.set_num_threads(CONFIG["torch_num_threads"])
 
     model = X02VisionGuardV2(num_classes=4, pretrained=False)
@@ -102,7 +102,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="x02 Unified Media Moderation",
+    title="x02 Vision V2",
     description="Image, GIF, and Video content moderation using EfficientNet-B4",
     version="2.1.0",
     lifespan=lifespan,
@@ -285,7 +285,7 @@ async def health_check():
     """Health check endpoint."""
     return {
         "status": "healthy" if model and media_processor else "degraded",
-        "service": "x02_unified_media_moderation_v2",
+        "service": "x02 vision v2",
         "model": "EfficientNet-B4",
         "device": DEVICE,
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -635,7 +635,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 if __name__ == "__main__":
     uvicorn.run(
-        "media_moderation_api:app",
+        "x02_vision_v2_api:app",
         host="0.0.0.0",
         port=8000,
         log_level="info",

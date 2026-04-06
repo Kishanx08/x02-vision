@@ -20,14 +20,14 @@ sudo npm install -g pm2
 Example target:
 
 ```bash
-sudo mkdir -p /opt/media_moderation
-sudo chown $USER:$USER /opt/media_moderation
+sudo mkdir -p /opt/x02vision-v2
+sudo chown $USER:$USER /opt/x02vision-v2
 ```
 
 Put these files there:
 - `efficientnet_model.py`
 - `media_processor.py`
-- `media_moderation_api.py`
+- `x02_vision_v2_api.py`
 - `services/`
 - `requirements.txt`
 - `ecosystem.config.cjs`
@@ -37,7 +37,7 @@ Put these files there:
 ## 4. Create virtual environment
 
 ```bash
-cd /opt/media_moderation
+cd /opt/x02vision-v2
 python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
@@ -47,7 +47,7 @@ pip install -r requirements.txt
 ## 5. Start with PM2
 
 ```bash
-cd /opt/media_moderation
+cd /opt/x02vision-v2
 pm2 start ecosystem.config.cjs
 pm2 save
 pm2 startup
@@ -57,7 +57,7 @@ Useful commands:
 
 ```bash
 pm2 status
-pm2 logs media-moderation
+pm2 logs x02vision-v2
 pm2 restart media-moderation
 pm2 stop media-moderation
 ```
@@ -67,8 +67,8 @@ pm2 stop media-moderation
 Copy the included config:
 
 ```bash
-sudo cp nginx-media-moderation.conf /etc/nginx/sites-available/media-moderation
-sudo ln -s /etc/nginx/sites-available/media-moderation /etc/nginx/sites-enabled/media-moderation
+sudo cp nginx-media-moderation.conf /etc/nginx/sites-available/x02vision-v2
+sudo ln -s /etc/nginx/sites-available/x02vision-v2 /etc/nginx/sites-enabled/x02vision-v2
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t
 sudo systemctl reload nginx

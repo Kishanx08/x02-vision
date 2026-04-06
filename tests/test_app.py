@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from media_moderation_api import app
+from x02_vision_v2_api import app
 
 client = TestClient(app)
 
@@ -10,7 +10,7 @@ def test_health_endpoint():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] in {"healthy", "degraded"}
-    assert data["service"] == "x02_unified_media_moderation_v2"
+    assert data["service"] == "x02 vision v2"
     assert "model" in data
 
 

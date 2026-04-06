@@ -1,10 +1,10 @@
 module.exports = {
   apps: [
     {
-      name: "media-moderation",
+      name: "x02vision-v2",
       script: ".venv/bin/python",
-      args: "-m uvicorn media_moderation_api:app --host 127.0.0.1 --port 8000 --workers 1",
-      cwd: "/opt/media_moderation",
+      args: "-m uvicorn x02_vision_v2_api:app --host 127.0.0.1 --port 8000 --workers 1",
+      cwd: "/opt/x02vision-v2",
       instances: 1,
       exec_mode: "fork",
       autorestart: true,
