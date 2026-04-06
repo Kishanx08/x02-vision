@@ -309,7 +309,7 @@ async def health_check():
 
 
 @app.post("/moderate-image")
-@limiter.limit("10/minute")
+@limiter.limit("100/minute")
 async def moderate_image(
     request: Request,
     file: Optional[UploadFile] = File(None),
@@ -340,7 +340,7 @@ async def moderate_image(
 
 
 @app.post("/moderate-gif")
-@limiter.limit("5/minute")
+@limiter.limit("100/minute")
 async def moderate_gif(
     request: Request,
     file: Optional[UploadFile] = File(None),
@@ -371,7 +371,7 @@ async def moderate_gif(
 
 
 @app.post("/moderate-video")
-@limiter.limit("3/minute")
+@limiter.limit("100/minute")
 async def moderate_video(
     request: Request,
     file: Optional[UploadFile] = File(None),
@@ -415,7 +415,7 @@ async def moderate_video(
 
 
 @app.post("/moderate-media")
-@limiter.limit("10/minute")
+@limiter.limit("100/minute")
 async def moderate_media(
     request: Request,
     file: Optional[UploadFile] = File(None),
@@ -507,7 +507,7 @@ async def create_async_job(
 
 
 @app.post("/jobs/moderate-gif", status_code=202)
-@limiter.limit("10/minute")
+@limiter.limit("100/minute")
 async def queue_moderate_gif(
     request: Request,
     file: Optional[UploadFile] = File(None),
@@ -531,7 +531,7 @@ async def queue_moderate_gif(
 
 
 @app.post("/jobs/moderate-video", status_code=202)
-@limiter.limit("10/minute")
+@limiter.limit("100/minute")
 async def queue_moderate_video(
     request: Request,
     file: Optional[UploadFile] = File(None),
