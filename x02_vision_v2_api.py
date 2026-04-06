@@ -17,6 +17,7 @@ from urllib.parse import urlparse
 import torch
 import uvicorn
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
@@ -106,6 +107,15 @@ app = FastAPI(
     description="Image, GIF, and Video content moderation using EfficientNet-B4",
     version="2.1.0",
     lifespan=lifespan,
+)
+
+# Enable CORS for all origins
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods
+    allow_headers=["*"],  # Allow all headers
 )
 
 limiter = Limiter(key_func=get_remote_address)
