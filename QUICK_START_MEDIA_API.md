@@ -155,22 +155,20 @@ with open("test.mp4", 'rb') as f:
 
 ---
 
-## EXPECTED TIMES
+## PERFORMANCE
 
-| Media | Processing | Accuracy |
-|-------|-----------|----------|
-| Image | 0.2s | 95-97% |
-| GIF (50 frames) | 10s | 95-97% |
-| Video (30s) | 45s | 92-95% |
-| Video (5m) | 5-10m | 92-95% |
+| Media | Processing | Notes |
+|-------|-----------|-------|
+| Image | ~0.1-0.2s | Very fast (no OCR) |
+| GIF (50 frames) | ~3-5s | Fast batch processing |
+| Video (30s) | ~10-20s | Configurable frame interval |
 
 ---
 
 ## RATE LIMITS
 
-- Image: 10/min per IP
-- GIF: 5/min per IP
-- Video: 3/min per IP
+- All endpoints: 100/min per IP
+- Concurrent processing: 8 requests at once
 
 ---
 

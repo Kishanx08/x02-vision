@@ -2,7 +2,7 @@
 
 ## Overview
 
-The x02 Vision V2 API provides comprehensive media content moderation for images, GIFs, and videos using EfficientNet-B4 machine learning models. The API supports both synchronous and asynchronous processing, with built-in OCR text analysis and configurable concurrency limits.
+The x02 Vision V2 API provides comprehensive media content moderation for images, GIFs, and videos using EfficientNet-B4 machine learning models. The API supports both synchronous and asynchronous processing with configurable concurrency limits.
 
 ## Base URL
 ```
@@ -21,11 +21,7 @@ Cross-Origin Resource Sharing (CORS) is enabled for all origins:
 - **Credentials:** Enabled
 
 ## Rate Limits
-- Image moderation: 10 requests/minute per IP
-- GIF moderation: 5 requests/minute per IP
-- Video moderation: 3 requests/minute per IP
-- Unified endpoint: 10 requests/minute per IP
-- Job queue endpoints: 10 requests/minute per IP
+- All endpoints: 100 requests/minute per IP
 
 ## Common Response Headers
 - `X-Request-ID`: Unique identifier for request tracing
@@ -51,9 +47,8 @@ Health check endpoint to verify service status and configuration.
   "model": "EfficientNet-B4",
   "device": "cuda",
   "timestamp": "2026-04-06T12:00:00.000000+00:00",
-  "max_concurrent_jobs": 4,
-  "queue_worker_count": 2,
-  "queued_jobs": 0
+  "max_concurrent_jobs": 8,
+  "queue_worker_count": 4
 }
 ```
 
@@ -76,7 +71,7 @@ Moderate a single image for NSFW content.
 **Method:** POST
 **Path:** /moderate-image
 **Content-Type:** multipart/form-data
-**Rate Limit:** 10/minute per IP
+**Rate Limit:** 100/minute per IP
 
 **Parameters:**
 - `file` (file, optional): Image file upload
@@ -111,22 +106,11 @@ Moderate a single image for NSFW content.
     "individual_results": [],
     "frame_count": 1
   },
-  "ocr_analysis": {
-    "enabled": true,
-    "available": true,
-    "sampled_frames": 1,
-    "matched": false,
-    "categories": [],
-    "hits": [],
-    "extracted_text": [],
-    "recommendation": "allow"
-  },
   "decision_reasoning": {
     "average_nsfw_score": 2.5,
     "max_nsfw_score": 5.3,
     "flagged_percentage": 0.0,
-    "decision_rule": "All frames safe, average score < 40%",
-    "ocr_flagged": false
+    "decision_rule": "All frames safe, average score < 40%"
   },
   "inference_time_ms": 234
 }
@@ -141,7 +125,7 @@ Moderate a GIF for NSFW content.
 **Method:** POST
 **Path:** /moderate-gif
 **Content-Type:** multipart/form-data
-**Rate Limit:** 5/minute per IP
+**Rate Limit:** 100/minute per IP
 
 **Parameters:**
 - `file` (file, optional): GIF file upload
@@ -164,7 +148,7 @@ Moderate a video for NSFW content with configurable frame sampling.
 **Method:** POST
 **Path:** /moderate-video
 **Content-Type:** multipart/form-data
-**Rate Limit:** 3/minute per IP
+**Rate Limit:** 100/minute per IP
 
 **Parameters:**
 - `file` (file, optional): Video file upload
@@ -188,7 +172,7 @@ Auto-detect media type and moderate accordingly.
 **Method:** POST
 **Path:** /moderate-media
 **Content-Type:** multipart/form-data
-**Rate Limit:** 10/minute per IP
+**Rate Limit:** 100/minute per IP
 
 **Parameters:**
 - `file` (file, optional): Media file upload
@@ -213,14 +197,13 @@ Queue a GIF moderation job for asynchronous processing.
 **Path:** /jobs/moderate-gif
 **Content-Type:** multipart/form-data
 **Response Code:** 202 Accepted
-**Rate Limit:** 10/minute per IP
+**Rate Limit:** 100/minute per IP
 
 **Parameters:**
 - `file` (file, optional): GIF file upload
 - `gif_url` (string, optional): HTTP/HTTPS URL to GIF
-- `enable_ocr` (boolean, optional, default: true): Enable OCR analysis
 
-**Response (202 Accepted):**
+**Response Code:** 202 Accepted
 ```json
 {
   "job_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -240,13 +223,12 @@ Queue a video moderation job for asynchronous processing.
 **Path:** /jobs/moderate-video
 **Content-Type:** multipart/form-data
 **Response Code:** 202 Accepted
-**Rate Limit:** 10/minute per IP
+**Rate Limit:** 100/minute per IP
 
 **Parameters:**
 - `file` (file, optional): Video file upload
 - `video_url` (string, optional): HTTP/HTTPS URL to video
 - `frame_interval` (integer, optional, default: 5): Frames to sample per second (1-30)
-- `enable_ocr` (boolean, optional, default: true): Enable OCR analysis
 
 **Response:** Same as GIF job queue response above.
 
@@ -342,9 +324,8 @@ Get service configuration and capabilities information.
     "soft_flag": "40-80",
     "hard_block": "> 80"
   },
-  "max_concurrent_jobs": 4,
-  "queue_worker_count": 2,
-  "ocr_enabled": true
+  "max_concurrent_jobs": 8,
+  "queue_worker_count": 4
 }
 ```
 
@@ -375,27 +356,16 @@ Get service configuration and capabilities information.
 - `individual_results`: Detailed per-frame results (usually empty for brevity)
 - `frame_count`: Number of frames processed
 
-**ocr_analysis**:
-- `enabled`: Whether OCR is enabled
-- `available`: Whether OCR backend is available
-- `sampled_frames`: Number of frames sampled for OCR
-- `matched`: Whether risky text was found
-- `categories`: Detected text categories
-- `hits`: Specific text matches
-- `extracted_text`: Raw extracted text
-- `recommendation`: OCR-based recommendation
-
 **decision_reasoning**:
 - `average_nsfw_score`: Same as aggregated_scores.average_score
 - `max_nsfw_score`: Same as aggregated_scores.max_score
 - `flagged_percentage`: Same as aggregated_scores.flagged_percentage
 - `decision_rule`: Text explanation of decision logic
-- `ocr_flagged`: Whether OCR triggered flagging
 
 ### Decision Rules
 
 - **Allow**: `max_score < 40` OR (`flagged_percentage < 30` AND `average_score < 40`)
-- **Soft Flag**: `flagged_percentage >= 30` OR `average_score >= 40` OR OCR detects risky content
+- **Soft Flag**: `flagged_percentage >= 30` OR `average_score >= 40`
 - **Hard Block**: `max_score >= 85`
 
 ---
@@ -645,11 +615,11 @@ moderateImage('https://example.com/image.jpg')
 
 ## Performance Notes
 
-- Concurrent jobs limited to 4 by default
-- Background queue workers: 2 by default
+- Concurrent jobs limited to 8 by default
+- Background queue workers: 4 by default
 - Frame sampling interval: 5 FPS by default
-- OCR enabled by default when available
 - GPU acceleration when CUDA available
+- OCR has been removed for better performance
 
 ---
 
@@ -743,19 +713,14 @@ def moderate_with_retry(content_url, max_retries=3):
 
 ## API Changelog
 
-### Version 2.1.0 (Current)
-- Added OCR text analysis for all media types
-- Improved decision rules with OCR integration
+### Version 2.2.0 (Current)
+- Removed OCR for improved performance
+- Increased rate limit to 100/minute
+- Increased concurrent jobs to 8
+- Increased queue workers to 4
+
+### Version 2.1.0
+- Added async job queue for long videos
+- Improved decision rules
 - Enhanced error handling and logging
 - Added request ID tracing
-
-### Version 2.0.0
-- Complete rewrite with FastAPI
-- Added async job queue for long videos
-- Improved concurrency handling
-- Added comprehensive health checks
-- Enhanced security features
-
-### Version 1.x
-- Initial implementation with basic image moderation
-- Limited to synchronous processing only

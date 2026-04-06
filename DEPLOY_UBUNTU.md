@@ -4,7 +4,7 @@
 
 ```bash
 sudo apt update
-sudo apt install -y python3 python3-pip python3-venv nginx tesseract-ocr
+sudo apt install -y python3 python3-pip python3-venv nginx
 ```
 
 ## 2. Install Node.js and PM2
@@ -89,10 +89,6 @@ sudo certbot --nginx -d your-domain.com
 
 ## Notes
 
-- PM2 is configured to bind Uvicorn to `127.0.0.1:8000` and let Nginx expose it publicly.
-- `workers=1` is intentional so one process owns one model copy. Increase carefully because each worker loads the model again.
-- `client_max_body_size 500M` matches the API upload limit.
-- Remote URL downloads are temporary and are deleted after processing.
-- OCR requires `tesseract-ocr`, which is included in the install command above.
-- DistilBERT-based text moderation is installed from `requirements.txt` via `transformers`.
-- If you want PaddleOCR instead of Tesseract, install it separately on the VPS with `pip install paddleocr`.
+- Keep `workers=1` if you are using one GPU-bound model copy.
+- On CPU-only VPS, you can consider more than one worker, but each worker loads its own model into memory.
+- Put Nginx in front for TLS, request buffering, and public exposure.

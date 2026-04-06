@@ -7,14 +7,11 @@ This service is a FastAPI app for moderating:
 - GIFs
 - Videos
 - Remote HTTP/HTTPS URLs
-- OCR text inside media
 
 It uses:
 - [efficientnet_model.py](efficientnet_model.py) for EfficientNet-B4 inference
 - [media_processor.py](media_processor.py) for download, extraction, and aggregation
 - [x02_vision_v2_api.py](x02_vision_v2_api.py) for the API layer
-- [services/ocr_service.py](services/ocr_service.py) for OCR backends
-- [services/text_moderation_service.py](services/text_moderation_service.py) for DistilBERT-based text moderation
 - [services/job_queue.py](services/job_queue.py) for async GIF/video jobs
 
 ## Production behavior
@@ -104,14 +101,6 @@ Returns the completed moderation result.
 - `502`: remote download failed
 - `504`: remote download timed out
 
-## OCR text moderation
-
-- OCR runs on sampled frames using PaddleOCR if installed, otherwise Tesseract.
-- Extracted text is then moderated by a DistilBERT-compatible zero-shot classifier.
-- If risky text is found, the result is upgraded to at least `soft_flag`.
-- OCR results are returned under `ocr_analysis`.
-- If OCR or the classifier is unavailable, the response reports that instead of crashing the request.
-
 ## Example requests
 
 ### Upload an image
@@ -170,22 +159,11 @@ Successful responses include:
     "individual_results": [],
     "frame_count": 1
   },
-  "ocr_analysis": {
-    "enabled": true,
-    "available": true,
-    "sampled_frames": 1,
-    "matched": false,
-    "categories": [],
-    "hits": [],
-    "extracted_text": [],
-    "recommendation": "allow"
-  },
   "decision_reasoning": {
     "average_nsfw_score": 2.5,
     "max_nsfw_score": 5.3,
     "flagged_percentage": 0.0,
-    "decision_rule": "All frames safe, average score < 40%",
-    "ocr_flagged": false
+    "decision_rule": "All frames safe, average score < 40%"
   },
   "inference_time_ms": 234
 }
@@ -208,9 +186,8 @@ Error responses include:
 ## Concurrency notes
 
 - The app allows several moderation jobs to run at once per process.
-- The current default is `4` concurrent jobs per process.
-- Very heavy video traffic may still need multiple app workers or multiple VPS instances.
-- Background queue workers can absorb long-running GIF/video jobs without making clients wait on one HTTP request.
+- The current default is `8` concurrent jobs per process.
+- Rate limit is 100 requests per minute per IP.
 
 ## Ubuntu VPS deployment
 
@@ -248,9 +225,6 @@ Notes:
 - Put Nginx in front for TLS, request buffering, and public exposure.
 - PM2 and an example Nginx site file are included in this folder.
 - See [DEPLOY_UBUNTU.md](DEPLOY_UBUNTU.md) for the full VPS setup.
-- OCR support requires `pytesseract` plus the Ubuntu `tesseract-ocr` package by default.
-- PaddleOCR is optional and can be installed separately if you want that backend.
-- Text moderation uses `transformers` with a DistilBERT-compatible classifier.
 
 ## Temporary file cleanup
 
